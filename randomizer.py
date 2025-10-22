@@ -59,34 +59,25 @@ tracks = []
 remaining = []
 current_playlist_id = None
 
-song_chosen = False
-
 next_song = None
 
 while True:
     playback = sp.current_playback()
 
     if playback is not None:
-        current_song = playback["item"]["uri"]
-
-        if next_song == current_song:
-            song_chosen = False
-
         playlist_id = get_current_playlist_id(playback)
 
         if playlist_id != current_playlist_id:
+            next_song = None
             current_playlist_id = playlist_id
 
             tracks = get_current_tracks(playlist_id)
 
             remaining = tracks[:]
 
-        duration = playback["item"]["duration_ms"]
-        current_time = playback["progress_ms"]
+        current_song = playback["item"]["uri"]
 
-        diff = duration - current_time
-
-        if current_playlist_id != None and diff <= 5000 and not song_chosen:
+        if next_song == current_song or (next_song is None and current_song is not None):
             if not remaining:
                 remaining = tracks[:]
 
@@ -98,9 +89,8 @@ while True:
 
             print(next_song)
 
-            song_chosen = True
-
             sp.add_to_queue(next_song)
             remaining.remove(next_song)
+            song_chosen = False
 
     time.sleep(0.5)
