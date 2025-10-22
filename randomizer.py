@@ -11,7 +11,6 @@ def get_current_playlist_id(playback):
     uri = context.get('uri')
 
     if not uri:
-        print("[WARN]No playback URI found")
         return None
 
     parts = uri.split(":")
@@ -49,10 +48,6 @@ def get_rng(user_id, playlist_id):
 
     return rng
 
-def is_skip(previous_pos, diff, duration):
-    pct = min(previous_pos / duration, 1.0) if duration else 0
-    return pct < 0.95 or diff < 3
-
 sp = spotipy.Spotify(auth_manager=SpotifyOAuth(scope="user-modify-playback-state user-read-playback-state"))
 
 user_id = sp.current_user()["id"]
@@ -60,12 +55,6 @@ user_id = sp.current_user()["id"]
 tracks = []
 remaining = []
 current_playlist_id = None
-
-next_song = None
-
-last_change_time = time.time()
-last_song = None
-previous_pos = 0
 
 skip_enqueuing_for_song = None
 
@@ -75,50 +64,41 @@ while True:
     if playback is not None:
         playlist_id = get_current_playlist_id(playback)
 
-        if playlist_id is not None:
-            now = time.time()
+        if playlist_id != current_playlist_id and playlist_id is not None:
+            current_playlist_id = playlist_id
+            tracks = get_current_tracks(playlist_id)
+            remaining = tracks[:]
 
-            current_song = playback["item"]["uri"]
-            current_pos = playback["progress_ms"]
+        now = time.time()
 
-            if playlist_id != current_playlist_id:
-                next_song = None
-                current_playlist_id = playlist_id
+        current_song = playback["item"]["uri"]
+        current_pos = playback["progress_ms"]
 
-                tracks = get_current_tracks(playlist_id)
+        duration = playback["item"]["duration_ms"]
 
+        percentage = min(current_pos / duration, 1.0) if duration > 0 else 0
+
+        if percentage > 0.99:
+            if not tracks:
+                time.sleep(1.0)
+                continue
+
+            if not remaining:
                 remaining = tracks[:]
 
-                sp.start_playback(
-                    uris=[current_song],
-                    position_ms=playback["progress_ms"],
-                    device_id=playback["device"]["id"],
-                )
+            rng = get_rng(user_id, current_playlist_id)
 
-            duration = playback["item"]["duration_ms"]
+            next_song = rng.choice(remaining)
 
-            if current_song != last_song:
-                diff = now - last_change_time
-                if is_skip(previous_pos, diff, duration):
-                    skip_enqueuing_for_song = current_song
+            print("current song finished, picking next song")
+            remaining.remove(next_song)
 
-                last_song = current_song
-                last_change_time = now
+            sp.start_playback(
+                uris=[next_song],
+                position_ms=0,
+                device_id=playback["device"]["id"],
+            )
 
-            if (next_song == current_song or (next_song is None and current_song is not None)) and skip_enqueuing_for_song != current_song:
-                if not remaining:
-                    remaining = tracks[:]
-
-                rng = get_rng(user_id, current_playlist_id)
-
-                next_song = rng.choice(remaining)
-
-                print("adding a new song to the queue!")
-
-                print(next_song)
-
-                sp.add_to_queue(next_song)
-                remaining.remove(next_song)
-
-    previous_pos = current_pos
-    time.sleep(0.5)
+        previous_pos = current_pos
+    else:
+        time.sleep(1.0)
