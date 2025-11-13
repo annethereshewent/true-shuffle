@@ -19,10 +19,11 @@ Once it's installed, run the following command to install all necessary python p
 ### Credentials
 
 To get the credentials, simply sign up [here](https://developer.spotify.com/documentation/web-api/tutorials/getting-started). Once you've created an application, create a .env file in the root directory of the cloned repository with the following:
-
+```
 SPOTIPY_CLIENT_ID=(Your client id)
 SPOTIPY_CLIENT_SECRET=(Your client secret)
 SPOTIPY_REDIRECT_URI=http://127.0.0.1:8888/callback (should be exactly like this. make sure that the redirect URI in your Spotify developer app created above matches this.)
+```
 
 ### Running
 
