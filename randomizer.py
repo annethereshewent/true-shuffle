@@ -40,8 +40,6 @@ while True:
             playing_song = playback["item"]["uri"]
 
             if playing_song != current_song:
-                print("the song changed! randomizing!")
-
                 device_id = playback["device"]["id"]
                 current_song = playing_song
                 next_song = current_song
