@@ -1,9 +1,8 @@
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
-import random
 import time
-import hashlib
-
+from dotenv import load_dotenv
+from collections import deque
 
 def get_current_playlist_id(playback):
     context = playback.get('context') or {}
@@ -20,85 +19,49 @@ def get_current_playlist_id(playback):
 
         return pid
 
-    print("[WARN] only playlists supported")
-
     return None
 
-def get_current_tracks(playlist_id):
-    result = sp.playlist_tracks(playlist_id, fields="items.track.uri,total,next")
-
-    uris = []
-
-    while True:
-        uris += [item["track"]["uri"] for item in result["items"]]
-
-        if not result.get("Next"):
-            break
-
-        result = result.next()
-
-    return uris
-
-def get_rng(user_id, playlist_id):
-    current_time = time.time_ns()
-
-    hash = int(hashlib.sha256(f"{user_id}-{playlist_id}-{current_time}".encode()).hexdigest(), 16)
-
-    rng = random.Random(hash)
-
-    return rng
+load_dotenv()
 
 sp = spotipy.Spotify(auth_manager=SpotifyOAuth(scope="user-modify-playback-state user-read-playback-state"))
 
-user_id = sp.current_user()["id"]
+playing_song = None
+current_song = None
 
-tracks = []
-remaining = []
-current_playlist_id = None
-
-skip_enqueuing_for_song = None
-
+rolling_history = deque(maxlen=10)
 while True:
     playback = sp.current_playback()
 
     if playback is not None:
         playlist_id = get_current_playlist_id(playback)
 
-        if playlist_id != current_playlist_id and playlist_id is not None:
-            current_playlist_id = playlist_id
-            tracks = get_current_tracks(playlist_id)
-            remaining = tracks[:]
+        # only use this randomizer for playlists
+        if playlist_id is not None:
+            playing_song = playback["item"]["uri"]
 
-        now = time.time()
+            if playing_song != current_song:
+                print("the song changed! randomizing!")
 
-        current_song = playback["item"]["uri"]
-        current_pos = playback["progress_ms"]
+                device_id = playback["device"]["id"]
+                current_song = playing_song
+                next_song = current_song
 
-        duration = playback["item"]["duration_ms"]
+                rolling_history.append(playing_song)
 
-        percentage = min(current_pos / duration, 1.0) if duration > 0 else 0
+                num_attempts = 0
+                max_attempts = 10
 
-        if percentage > 0.99:
-            if not tracks:
-                time.sleep(1.0)
-                continue
+                while next_song in rolling_history and num_attempts < max_attempts:
+                    sp.shuffle(False, device_id=device_id)
+                    sp.shuffle(True, device_id=device_id)
 
-            if not remaining:
-                remaining = tracks[:]
+                    queue = sp.queue()
+                    if not queue["queue"]:
+                        break
 
-            rng = get_rng(user_id, current_playlist_id)
+                    next_song = queue["queue"][0]["uri"]
 
-            next_song = rng.choice(remaining)
+                    time.sleep(0.3)
+                    num_attempts += 1
 
-            print("current song finished, picking next song")
-            remaining.remove(next_song)
-
-            sp.start_playback(
-                uris=[next_song],
-                position_ms=0,
-                device_id=playback["device"]["id"],
-            )
-
-        previous_pos = current_pos
-    else:
-        time.sleep(1.0)
+    time.sleep(0.5)
