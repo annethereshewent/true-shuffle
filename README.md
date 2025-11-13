@@ -22,8 +22,10 @@ To get the credentials, simply sign up [here](https://developer.spotify.com/docu
 ```
 SPOTIPY_CLIENT_ID=(Your client id)
 SPOTIPY_CLIENT_SECRET=(Your client secret)
-SPOTIPY_REDIRECT_URI=http://127.0.0.1:8888/callback (should be exactly like this. make sure that the redirect URI in your Spotify developer app created above matches this.)
+SPOTIPY_REDIRECT_URI=http://127.0.0.1:8888/callback
 ```
+
+Note that SPOTIFY_REDIRECT_URI should be **exactly** as written above. Make sure that the redirect URI in the WebAPI app you created above matches this as well.
 
 ### Running
 
