@@ -6,6 +6,8 @@ This is a Spotify daemon that will randomize songs in a playlist every time you 
 
 This will run in the background of your computer and will work for any device you're using as long as you keep the daemon running.
 
+Note that currently only playlists are supported, albums and the like will not be shuffled.
+
 ## Setup
 
 ### Python3 Setup
